@@ -9,9 +9,10 @@ See LICENSE for licensing information.
 
 import logging
 try:
-    from xml.etree import ElementTree as etree
-except ImportError:
     from lxml import etree
+except ImportError:
+    # xml.etree.ElementTree does not support xpath() method.
+    from xml.etree import ElementTree as etree
 try:
     from PIL import Image
 except ImportError:
@@ -63,10 +64,10 @@ nsprefixes = {
     'pr':'http://schemas.openxmlformats.org/package/2006/relationships'
     }
 
-def opendocx(file):
+def opendocx(filename, archive_entry='word/document.xml'):
     '''Open a docx file, return a document XML tree'''
-    mydoc = zipfile.ZipFile(file)
-    xmlcontent = mydoc.read('word/document.xml')
+    mydoc = zipfile.ZipFile(filename)
+    xmlcontent = mydoc.read(archive_entry)
     document = etree.fromstring(xmlcontent)
     return document
 
@@ -218,7 +219,13 @@ def contenttypes():
     for part in parts:
         types.append(makeelement('Override',nsprefix=None,attributes={'PartName':part,'ContentType':parts[part]}))
     # Add support for filetypes
-    filetypes = {'rels':'application/vnd.openxmlformats-package.relationships+xml','xml':'application/xml','jpeg':'image/jpeg','gif':'image/gif','png':'image/png'}
+    filetypes = {
+        'rels':'application/vnd.openxmlformats-package.relationships+xml',
+        'xml':'application/xml',
+        'jpeg':'image/jpeg',
+        'gif':'image/gif',
+        'png':'image/png',
+        }
     for extension in filetypes:
         types.append(makeelement('Default',nsprefix=None,attributes={'Extension':extension,'ContentType':filetypes[extension]}))
     return types
@@ -875,6 +882,7 @@ def savedocx(document,coreprops,appprops,contenttypes,websettings,wordrelationsh
             if filename in files_to_ignore:
                 continue
             templatefile = join(dirpath,filename)
+            # Remove "./" from templatefile when adding to zip archive.
             archivename = templatefile[2:]
             log.info('Saving: %s', archivename)
             docxfile.write(templatefile, archivename)
@@ -884,3 +892,53 @@ def savedocx(document,coreprops,appprops,contenttypes,websettings,wordrelationsh
     return
 
 
+class Archive(object):
+    def __init__(self, filename):  # title=None, subject=None, creator=None, keywords=None):
+        self.filename = filename
+#        self.relationships = relationshiplist()
+#        self.coreprops = coreproperties(
+#            title=title,
+#            subject=subject,
+#            creator=creator,
+#            keywords=keywords)
+#        self.appprops = appproperties()
+#        self.contenttypes = contenttypes()
+#        self.websettings = websettings()
+#        self.wordrelationships = wordrelationships(relationships)
+        self.parts = {}
+        self._read()
+
+    def _read(self):
+        '''Open a docx file, return a document XML tree'''
+        archive = zipfile.ZipFile(self.filename)
+        for entry in archive.infolist():
+            xmlcontent = archive.read(entry.filename)
+            log.info('Reading from zip: %s' % entry.filename)
+            self.parts[entry.filename] = etree.fromstring(xmlcontent)
+
+    def save(self, new_filename):
+        assert os.path.isdir(template_dir)
+        docxfile = zipfile.ZipFile(
+            new_filename,
+            mode='w',
+            compression=zipfile.ZIP_DEFLATED)
+
+        # Serialize our trees into out zip file
+        for entry_name, tree in self.parts.items():
+            log.info('Saving: %s' % entry_name)
+            treestring = etree.tostring(tree, pretty_print=True)
+            docxfile.writestr(entry_name, treestring)
+
+        # Add & compress support files
+        files_to_ignore = ['.DS_Store']  # nuisance from some os's
+        for dirpath, dirnames, filenames in os.walk(template_dir):
+            for filename in filenames:
+                if filename in files_to_ignore:
+                    continue
+                templatefile = join(dirpath, filename)
+                # Remove extra path from zip archive entry name.
+                archive_name = templatefile[len(template_dir):]
+                log.info('Saving: %s', archive_name)
+                docxfile.write(templatefile, archive_name)
+        log.info('Saved new file to: %r', new_filename)
+        docxfile.close()
