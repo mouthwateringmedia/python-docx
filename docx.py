@@ -22,6 +22,7 @@ import shutil
 import re
 import time
 import os
+import mimetypes
 from os.path import join
 
 log = logging.getLogger(__name__)
@@ -905,16 +906,30 @@ class Archive(object):
 #        self.contenttypes = contenttypes()
 #        self.websettings = websettings()
 #        self.wordrelationships = wordrelationships(relationships)
-        self.parts = {}
-        self._read()
+        self._loaded = {}
+        self.entry_names = [
+            entry.filename for entry in self.archive.infolist()]
 
-    def _read(self):
-        '''Open a docx file, return a document XML tree'''
-        archive = zipfile.ZipFile(self.filename)
-        for entry in archive.infolist():
-            xmlcontent = archive.read(entry.filename)
-            log.info('Reading from zip: %s' % entry.filename)
-            self.parts[entry.filename] = etree.fromstring(xmlcontent)
+    @property
+    def archive(self):
+        return zipfile.ZipFile(self.filename)
+
+    def get_document(self):
+        return self.get('word/document.xml')
+
+    def get(self, name):
+        '''Open a docx file, return a document XML tree or raw data.'''
+        if name not in self._loaded:
+            content_type, encoding = mimetypes.guess_type(name)
+            if content_type is None:
+                content_type = 'unknown'
+            content = self.archive.read(name)
+            log.info('Reading from zip: %s (%s)' % (name, content_type))
+            if content_type == 'application/xml':
+                self._loaded[name] = etree.fromstring(content)
+            else:
+                self._loaded[name] = content
+        return self._loaded[name]
 
     def save(self, new_filename):
         assert os.path.isdir(template_dir)
@@ -922,13 +937,29 @@ class Archive(object):
             new_filename,
             mode='w',
             compression=zipfile.ZIP_DEFLATED)
+        if self.filename:
+            for name in self.entry_names:
+                if name not in self._loaded:
+                    log.info('Copying to zip: %s' % name)
+                    docxfile.writestr(name, self.archive.read(name))
+        else:
+            self._add_support_files(docxfile)
 
         # Serialize our trees into out zip file
-        for entry_name, tree in self.parts.items():
-            log.info('Saving: %s' % entry_name)
-            treestring = etree.tostring(tree, pretty_print=True)
-            docxfile.writestr(entry_name, treestring)
+        for name, content in self._loaded.items():
+            log.info('Saving to zip: %s' % name)
+            if not isinstance(content, (str, unicode)):
+                content = etree.tostring(content, pretty_print=True)
+                content = content.replace('\n', '\r\n')
+                content = (
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    '\r\n' + content)
+            docxfile.writestr(name, content)
 
+        log.info('Saved new file to: %r', new_filename)
+        docxfile.close()
+
+    def _add_support_files(self):
         # Add & compress support files
         files_to_ignore = ['.DS_Store']  # nuisance from some os's
         for dirpath, dirnames, filenames in os.walk(template_dir):
@@ -938,7 +969,5 @@ class Archive(object):
                 templatefile = join(dirpath, filename)
                 # Remove extra path from zip archive entry name.
                 archive_name = templatefile[len(template_dir):]
-                log.info('Saving: %s', archive_name)
+                log.info('Saving to zip: %s', archive_name)
                 docxfile.write(templatefile, archive_name)
-        log.info('Saved new file to: %r', new_filename)
-        docxfile.close()
