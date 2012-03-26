@@ -137,7 +137,9 @@ def pagebreak(type='page', orient='portrait'):
         pagebreak.append(pPr)
     return pagebreak
 
-def paragraph(paratext, style='BodyText', breakbefore=False, jc='left', size=None):
+
+def paragraph(paratext, style='BodyText', breakbefore=False, jc='left',
+              size=None, font=None):
     '''Make a new paragraph element, containing a run, and some text.
     Return the paragraph element.
 
@@ -164,15 +166,15 @@ def paragraph(paratext, style='BodyText', breakbefore=False, jc='left', size=Non
     if isinstance(paratext, list):
         text = []
         for pt in paratext:
-            if isinstance(pt, (list,tuple)):
-                text.append([makeelement('t',tagtext=pt[0]), pt[1]])
+            if isinstance(pt, (list, tuple)):
+                text.append([makeelement('t', tagtext=pt[0]), pt[1]])
             else:
-                text.append([makeelement('t',tagtext=pt), ''])
+                text.append([makeelement('t', tagtext=pt), ''])
     else:
-        text = [[makeelement('t',tagtext=paratext),''],]
+        text = [[makeelement('t', tagtext=paratext), '']]
     pPr = makeelement('pPr')
-    pStyle = makeelement('pStyle',attributes={'val':style})
-    pJc = makeelement('jc',attributes={'val':jc})
+    pStyle = makeelement('pStyle', attributes={'val': style})
+    pJc = makeelement('jc', attributes={'val': jc})
     pPr.append(pStyle)
     pPr.append(pJc)
 
@@ -186,7 +188,7 @@ def paragraph(paratext, style='BodyText', breakbefore=False, jc='left', size=Non
             b = makeelement('b')
             rPr.append(b)
         if t[1].find('u') > -1:
-            u = makeelement('u',attributes={'val':'single'})
+            u = makeelement('u', attributes={'val': 'single'})
             rPr.append(u)
         if t[1].find('i') > -1:
             i = makeelement('i')
@@ -194,6 +196,12 @@ def paragraph(paratext, style='BodyText', breakbefore=False, jc='left', size=Non
         if size is not None:
             rPr.append(makeelement('sz', attributes=dict(val=size)))
             rPr.append(makeelement('szCs', attributes=dict(val=size)))
+        if font is not None:
+            rPr.append(makeelement('rFonts', attributes=dict(
+                    ascii=font,
+                    hAnsi=font,
+                    cs=font,
+                    )))
         run.append(rPr)
         # Insert lastRenderedPageBreak for assistive technologies like
         # document narrators to know when a page break occurred.
@@ -204,6 +212,7 @@ def paragraph(paratext, style='BodyText', breakbefore=False, jc='left', size=Non
         paragraph.append(run)
     # Return the combined paragraph
     return paragraph
+
 
 def contenttypes():
     # FIXME - doesn't quite work...read from string as temp hack...
