@@ -936,7 +936,7 @@ class Archive(object):
             if content_type is None:
                 content_type = 'unknown'
             content = self.archive.read(name)
-            log.info('Reading from zip: %s (%s)' % (name, content_type))
+            log.debug('Reading from zip: %s (%s)' % (name, content_type))
             if content_type == 'application/xml':
                 self._loaded[name] = etree.fromstring(content)
             else:
@@ -952,7 +952,7 @@ class Archive(object):
         if self.filename:
             for name in self.entry_names:
                 if name not in self._loaded:
-                    log.info('Copying to zip: %s' % name)
+                    log.debug('Copying to zip: %s' % name)
                     docxfile.writestr(name, self.archive.read(name))
         else:
             self._add_support_files(docxfile)
