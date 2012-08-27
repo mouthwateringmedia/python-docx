@@ -884,7 +884,7 @@ def savedocx(document,coreprops,appprops,contenttypes,websettings,wordrelationsh
                      websettings:'word/webSettings.xml',
                      wordrelationships:'word/_rels/document.xml.rels'}
     for tree in treesandfiles:
-        log.info('Saving: '+treesandfiles[tree]    )
+        log.debug('Saving: '+treesandfiles[tree]    )
         treestring = etree.tostring(tree, pretty_print=True)
         docxfile.writestr(treesandfiles[tree],treestring)
 
@@ -897,9 +897,9 @@ def savedocx(document,coreprops,appprops,contenttypes,websettings,wordrelationsh
             templatefile = join(dirpath,filename)
             # Remove "./" from templatefile when adding to zip archive.
             archivename = templatefile[2:]
-            log.info('Saving: %s', archivename)
+            log.debug('Saving: %s', archivename)
             docxfile.write(templatefile, archivename)
-    log.info('Saved new file to: %r', output)
+    log.debug('Saved new file to: %r', output)
     docxfile.close()
     os.chdir(prev_dir) # restore previous working dir
     return
@@ -959,7 +959,7 @@ class Archive(object):
 
         # Serialize our trees into out zip file
         for name, content in self._loaded.items():
-            log.info('Saving to zip: %s' % name)
+            log.debug('Saving to zip: %s' % name)
             if not isinstance(content, (str, unicode)):
                 content = etree.tostring(content, pretty_print=True)
                 content = content.replace('\n', '\r\n')
@@ -968,7 +968,7 @@ class Archive(object):
                     '\r\n' + content)
             docxfile.writestr(name, content)
 
-        log.info('Saved new file to: %r', new_filename)
+        log.debug('Saved new file to: %r', new_filename)
         docxfile.close()
 
     def _add_support_files(self):
@@ -981,5 +981,5 @@ class Archive(object):
                 templatefile = join(dirpath, filename)
                 # Remove extra path from zip archive entry name.
                 archive_name = templatefile[len(template_dir):]
-                log.info('Saving to zip: %s', archive_name)
+                log.debug('Saving to zip: %s', archive_name)
                 docxfile.write(templatefile, archive_name)
