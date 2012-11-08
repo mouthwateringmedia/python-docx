@@ -508,6 +508,49 @@ def replace(document,search,replace):
                     element.text = re.sub(search,replace,element.text)
     return newdocument
 
+
+def get_rpr_properties(r):
+    props = {}
+    for rpr in r.xpath('./w:rPr', namespaces=nsprefixes):
+        for child in rpr.iterchildren():
+            tag = child.tag.split('}')[1]
+            prop_key = '%s:%s' % (child.prefix, tag)
+            attrs = {}
+            for attr, value in child.attrib.items():
+                attr_key = 'w:%s' % attr.split('}')[1]
+                attrs[attr_key] = value
+            props[prop_key] = attrs
+    from pprint import pprint
+    pprint(props, indent=4)
+    return props
+
+
+def get_text_string(parent):
+    return ''.join(
+        t.text for t in parent.xpath('.//w:t', namespaces=nsprefixes))
+
+
+def get_single_text_elem(parent):
+    result = parent.xpath('.//w:t', namespaces=nsprefixes)
+    if len(result) != 1:
+        raise ValueError('%s contains %d w:t elems' % (parent, len(result)))
+    return result[0]
+
+
+def smart_replace(doc, search, replace):
+    search_re = re.compile(search)
+    for p in doc.xpath('//w:p', namespaces=nsprefixes):
+        text = get_text_string(p)
+        if search_re.search(text):
+            prev_r = None
+            prev_t = None
+            prev_rpr_props = None
+            for r in p.xpath('./w:r', namespaces=nsprefixes):
+                rpr_props = get_rpr_properties(r)
+                if rpr_props == prev_rpr_props:
+                    get
+
+
 def clean(document):
     """ Perform misc cleaning operations on documents.
         Returns cleaned document.
