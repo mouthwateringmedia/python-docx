@@ -948,6 +948,12 @@ def savedocx(document,coreprops,appprops,contenttypes,websettings,wordrelationsh
     return
 
 
+def xpath(elem, path):
+    namespaces = {"re": "http://exslt.org/regular-expressions"}
+    namespaces.update(nsprefixes)
+    return elem.xpath(path, namespaces=namespaces)
+
+
 class Archive(object):
     def __init__(self, filename):  # title=None, subject=None, creator=None, keywords=None):
         self.filename = filename
